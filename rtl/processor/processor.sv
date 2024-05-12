@@ -71,6 +71,7 @@ logic         	id_valid_inst_out;
 logic 			id_uncond_branch;
 logic 			id_cond_branch;
 logic [31:0]    id_pc_add_opa;
+logic 			stall;
 
 // Outputs from ID/EX Pipeline Register
 logic 			id_ex_reg_wr;
@@ -131,7 +132,7 @@ assign im_command=`BUS_LOAD;
 assign pipeline_commit_wr_idx 	= mem_wb_dest_reg_idx;
 assign pipeline_commit_wr_data 	= wb_reg_wr_data_out;
 assign pipeline_commit_NPC 		= if_NPC_out;
-assign pipeline_commit_wr 		= mem_wb_reg_wr;
+assign pipeline_commit_wr9 		= mem_wb_reg_wr;
 
 
 //////////////////////////////////////////////////
@@ -196,7 +197,9 @@ id_stage id_stage_0 (
 .mem_wb_reg_wr			(mem_wb_reg_wr), 
 .wb_reg_wr_data_out     (wb_reg_wr_data_out),  	
 .if_id_valid_inst       (if_id_valid_inst),
-
+.id_ex_dest_reg_idx     (id_ex_dest_reg_idx) // edit
+.ex_mem_dest_reg_idx    (ex_mem_dest_reg_idx) //
+.mem_wb_dest_reg_idx    (mem_wb_dest_reg_idx) //
 // Outputs
 .id_reg_wr_out          (id_reg_wr_out),
 .id_funct3_out			(id_funct3_out),
@@ -250,7 +253,8 @@ always_ff @(posedge clk or posedge rst) begin
 		//Debug
 		id_ex_NPC           <=  0;
     end else begin 
-		if (id_ex_enable) begin
+		if (stall == 0) begin //////////////////////////////////////////////////////////////////////////////////
+		if (id_ex_enable ) begin
 			id_ex_funct3		<=  id_funct3_out;
 			id_ex_opa_select    <=  id_opa_select_out;
 			id_ex_opb_select    <=  id_opb_select_out;
@@ -273,8 +277,19 @@ always_ff @(posedge clk or posedge rst) begin
 			id_ex_uncond_branch <=  id_uncond_branch;
 			id_ex_cond_branch	<=  id_cond_branch;
 		end // if
-    end // else: !if(rst)
-end // always
+		end else begin
+		id_ex_funct3		<=  0;
+		id_ex_opa_select    <=  `ALU_OPA_IS_REGA;
+		id_ex_opb_select    <=  `ALU_OPB_IS_REGB;
+		id_ex_alu_func      <=  `ALU_ADD;
+		id_ex_rd_mem        <=  0;
+		id_ex_wr_mem        <=  0;
+		id_ex_illegal       <=  0;
+		id_ex_valid_inst    <=  `FALSE;
+        id_ex_reg_wr        <=  `FALSE;
+		end
+	end
+end // always/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////
 //                                              //

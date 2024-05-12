@@ -4,7 +4,7 @@ file delete -force work
 vlib work
 vlog -f files_rtl.f
 
-vsim -novopt processor_tb
+vsim  processor_tb.sv
 log -r /*
 
 run -all

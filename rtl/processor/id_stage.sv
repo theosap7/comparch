@@ -51,6 +51,8 @@ always_comb begin
 				`SRA_INST  : alu_func = `ALU_SRA;   
 				`SLT_INST  : alu_func = `ALU_SLT;   
 				`SLTU_INST : alu_func = `ALU_SLTU;
+				`MUL_INST  : alu_func = `ALU_MUL;		
+				`MULHU_INST  : alu_func = `ALU_MULHU;
 				default: illegal = `TRUE;
 			endcase 
 		end //R-TYPE
@@ -148,8 +150,37 @@ always_comb begin
 		
 		default: illegal = `TRUE;
 	endcase 
+
 end 
 endmodule // inst_decoder
+
+module HzDU(
+input [31:0] instr,
+input logic [4:0] mem_wb_rd,
+input logic [4:0] ex_mem_rd,
+input logic [4:0] id_ex_rd,
+
+output logic PC_en,
+output logic if_id_en,
+output logic stall);
+
+logic[4:0] rs1_idx; // 
+logic[4:0] rs2_idx; // 
+assign rs1_idx=instr[19:15];	// inst operand A register index
+assign rs2_idx=instr[24:20];	// inst operand B register index
+
+always_comb begin
+	if (rs1_idx!=0 && (rs1_idx == id_ex_rd || rs1_idx == ex_mem_rd || rs1_idx== mem_wb_rd))||(rs2_idx!=0 && (rs2_idx == id_ex_rd || rs2_idx == ex_mem_rd || rs2_idx== mem_wb_rd))
+		stall=1;
+		PC_en=0;
+		if_id_en=0;
+	else
+		stall=0;
+		PC_en=1;
+		if_id_en=1;
+end
+
+endmodule //HzDU
 
 
 
@@ -164,6 +195,11 @@ input logic	        mem_wb_reg_wr,   	 	//Does the instruction write to rd?
 input logic [4:0]	mem_wb_dest_reg_idx, 	//index of rd
 input logic [31:0] 	wb_reg_wr_data_out, 	// Reg write data from WB Stage
 input logic         if_id_valid_inst,
+
+
+input logic [4:0] id_ex_dest_reg_idx,  //
+input logic [4:0] ex_mem_dest_reg_idx, //
+input logic [4:0] mem_wb_dest_reg_idx, // edit
 
 output logic [31:0] id_ra_value_out,    	// reg A value
 output logic [31:0] id_rb_value_out,    	// reg B value
@@ -189,9 +225,9 @@ logic dest_reg_select;
 logic [31:0] rb_val;
 
 //instruction fields read from IF/ID pipeline register
-logic[4:0] ra_idx; 
-logic[4:0] rb_idx; 
-logic[4:0] rc_idx; 
+logic[4:0] ra_idx; // mallon r1
+logic[4:0] rb_idx; // mallon r2
+logic[4:0] rc_idx; // mallon rd
 
 assign ra_idx=if_id_IR[19:15];	// inst operand A register index
 assign rb_idx=if_id_IR[24:20];	// inst operand B register index
@@ -200,6 +236,7 @@ assign rc_idx=if_id_IR[11:7];  // inst operand C register index
 
 logic write_en;
 assign write_en=mem_wb_valid_inst & mem_wb_reg_wr;
+
 
 regfile regf_0(.clk		(clk),
 			   .rst		(rst),
@@ -211,7 +248,18 @@ regfile regf_0(.clk		(clk),
 			   .wr_idx	(mem_wb_dest_reg_idx),
 			   .wr_data	(wb_reg_wr_data_out));
 
+
+
 assign id_rb_value_out=rb_val;
+
+HzDU hzdu_0(
+			   .isntr	(if_id_IR),
+			   .mem_wb_rd	(mem_wb_dest_reg_idx), 
+			   .ex_mem_rd	(ex_mem_dest_reg_idx),
+			   .id_ex_rd	(id_ex_dest_reg_idx), 
+			   .PC_en	(PC_enable),
+			   .if_id_en	(if_id_enable),
+			   .stall	(stall));
 
 // instantiate the instruction inst_decoder
 inst_decoder inst_decoder_0(.inst	        (if_id_IR),
