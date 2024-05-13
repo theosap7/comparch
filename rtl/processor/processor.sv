@@ -148,7 +148,7 @@ if_stage if_stage_0 (
 .ex_take_branch_out	(ex_mem_take_branch),
 .ex_target_PC_out	(ex_mem_target_PC),
 .Imem2proc_data		(instruction),
-
+.stall(stall),
 
 // Outputs
 .if_NPC_out			(if_NPC_out),
@@ -163,10 +163,10 @@ if_stage if_stage_0 (
 //            IF/ID Pipeline Register           //
 //                                              //
 //////////////////////////////////////////////////
-assign if_id_enable = 1;
+assign if_id_enable = !stall;
 
 always_ff @(posedge clk or posedge rst) begin
-	if(rst) begin
+	if(rst||ex_mem_take_branch) begin
 		if_id_PC         <=  0;
 		if_id_IR         <=  `NOOP_INST;
 		if_id_NPC        <=  0;
@@ -216,7 +216,8 @@ id_stage id_stage_0 (
 .cond_branch			(id_cond_branch),
 .uncond_branch			(id_uncond_branch),
 .id_illegal_out			(id_illegal_out),
-.id_valid_inst_out		(id_valid_inst_out)
+.id_valid_inst_out		(id_valid_inst_out),
+.stall(stall)
 );
 
 //////////////////////////////////////////////////
@@ -224,10 +225,11 @@ id_stage id_stage_0 (
 //            ID/EX Pipeline Register           //
 //                                              //
 //////////////////////////////////////////////////
-assign id_ex_enable = (stall == 1) ? 0 : 1; // disabled when HzDU initiates a stall
+assign id_ex_enable =1;
+// assign id_ex_enable = (stall == 1) ? 0 : 1; // disabled when HzDU initiates a stall
 // synopsys sync_set_rst "rst"
 always_ff @(posedge clk or posedge rst) begin
-	if (rst) begin //sys_rst
+	if (rst|ex_mem_take_branch|stall) begin //sys_rst
 		//Control
 		id_ex_funct3		<=  0;
 		id_ex_opa_select    <=  `ALU_OPA_IS_REGA;
@@ -276,17 +278,18 @@ always_ff @(posedge clk or posedge rst) begin
 			id_ex_pc_add_opa	<=  id_pc_add_opa;
 			id_ex_uncond_branch <=  id_uncond_branch;
 			id_ex_cond_branch	<=  id_cond_branch;
-		end else begin
-		id_ex_funct3		<=  0;
-		id_ex_opa_select    <=  `ALU_OPA_IS_REGA;
-		id_ex_opb_select    <=  `ALU_OPB_IS_REGB;
-		id_ex_alu_func      <=  `ALU_ADD;
-		id_ex_rd_mem        <=  0;
-		id_ex_wr_mem        <=  0;
-		id_ex_illegal       <=  0;
-		id_ex_valid_inst    <=  `FALSE;
-        id_ex_reg_wr        <=  `FALSE;
 		end
+		// end else begin
+		// id_ex_funct3		<=  0;
+		// id_ex_opa_select    <=  `ALU_OPA_IS_REGA;
+		// id_ex_opb_select    <=  `ALU_OPB_IS_REGB;
+		// id_ex_alu_func      <=  `ALU_ADD;
+		// id_ex_rd_mem        <=  0;
+		// id_ex_wr_mem        <=  0;
+		// id_ex_illegal       <=  0;
+		// id_ex_valid_inst    <=  `FALSE;
+        // id_ex_reg_wr        <=  `FALSE;
+		// end
 	end
 end // always/////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -325,7 +328,7 @@ ex_stage ex_stage_0 (
 assign ex_mem_enable = 1; // always enabled
 // synopsys sync_set_rst "rst"
 always_ff @(posedge clk or posedge rst) begin
-	if (rst) begin
+	if (rst|ex_mem_take_branch) begin
 		//Control
 		ex_mem_funct3		<=  0;
 		ex_mem_rd_mem       <=  0;

@@ -172,10 +172,10 @@ assign rs1_idx=instr[19:15];	// inst operand A register index
 assign rs2_idx=instr[24:20];	// inst operand B register index
 
 always_comb begin
-	//if ((rs1_idx!=0 && (rs1_idx == id_ex_rd || rs1_idx == ex_mem_rd || rs1_idx== mem_wb_rd))||(rs2_idx!=0 && (rs2_idx == id_ex_rd || rs2_idx == ex_mem_rd || rs2_idx== mem_wb_rd))) begin
-	if (rs1_idx==0) begin
+	if ((rs1_idx!=0 && (rs1_idx == id_ex_rd || rs1_idx == ex_mem_rd || rs1_idx== mem_wb_rd))||(rs2_idx!=0 && (rs2_idx == id_ex_rd || rs2_idx == ex_mem_rd || rs2_idx== mem_wb_rd))) begin
+	//if (rs1_idx ==0) begin
 		stall=1;
-		PC_en=0;//////////////0
+		PC_en=0;
 		if_id_en=0;
 	end else begin
 		stall=0;
@@ -222,12 +222,13 @@ output logic 	    id_wr_mem_out,          // does inst write memory?
 output logic 		cond_branch,
 output logic        uncond_branch,
 output logic       	id_illegal_out,
-output logic       	id_valid_inst_out	  	// is inst a valid instruction to be counted for CPI calculations?
+output logic       	id_valid_inst_out,	  	// is inst a valid instruction to be counted for CPI calculations?
+output logic stall
 );
    
 logic dest_reg_select;
 logic [31:0] rb_val;
-logic stall;
+
 //instruction fields read from IF/ID pipeline register
 logic[4:0] ra_idx; // mallon r1
 logic[4:0] rb_idx; // mallon r2
