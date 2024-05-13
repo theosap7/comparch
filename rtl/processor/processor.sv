@@ -197,9 +197,9 @@ id_stage id_stage_0 (
 .mem_wb_reg_wr			(mem_wb_reg_wr), 
 .wb_reg_wr_data_out     (wb_reg_wr_data_out),  	
 .if_id_valid_inst       (if_id_valid_inst),
-.id_ex_dest_reg_idx     (id_ex_dest_reg_idx) // edit
-.ex_mem_dest_reg_idx    (ex_mem_dest_reg_idx) //
-.mem_wb_dest_reg_idx    (mem_wb_dest_reg_idx) //
+.id_ex_dest_reg_idx     (id_ex_dest_reg_idx), // edit
+.ex_mem_dest_reg_idx    (ex_mem_dest_reg_idx), //
+//.mem_wb_dest_reg_idx    (mem_wb_dest_reg_idx), //
 // Outputs
 .id_reg_wr_out          (id_reg_wr_out),
 .id_funct3_out			(id_funct3_out),
@@ -224,7 +224,7 @@ id_stage id_stage_0 (
 //            ID/EX Pipeline Register           //
 //                                              //
 //////////////////////////////////////////////////
-assign id_ex_enable =1; // disabled when HzDU initiates a stall
+assign id_ex_enable = (stall == 1) ? 0 : 1; // disabled when HzDU initiates a stall
 // synopsys sync_set_rst "rst"
 always_ff @(posedge clk or posedge rst) begin
 	if (rst) begin //sys_rst
@@ -253,7 +253,7 @@ always_ff @(posedge clk or posedge rst) begin
 		//Debug
 		id_ex_NPC           <=  0;
     end else begin 
-		if (stall == 0) begin //////////////////////////////////////////////////////////////////////////////////
+		//if (stall == 0) begin //////////////////////////////////////////////////////////////////////////////////
 		if (id_ex_enable ) begin
 			id_ex_funct3		<=  id_funct3_out;
 			id_ex_opa_select    <=  id_opa_select_out;
@@ -276,7 +276,6 @@ always_ff @(posedge clk or posedge rst) begin
 			id_ex_pc_add_opa	<=  id_pc_add_opa;
 			id_ex_uncond_branch <=  id_uncond_branch;
 			id_ex_cond_branch	<=  id_cond_branch;
-		end // if
 		end else begin
 		id_ex_funct3		<=  0;
 		id_ex_opa_select    <=  `ALU_OPA_IS_REGA;

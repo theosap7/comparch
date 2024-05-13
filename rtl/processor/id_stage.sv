@@ -155,6 +155,8 @@ end
 endmodule // inst_decoder
 
 module HzDU(
+input logic clk,
+input logic rst,
 input [31:0] instr,
 input logic [4:0] mem_wb_rd,
 input logic [4:0] ex_mem_rd,
@@ -170,14 +172,16 @@ assign rs1_idx=instr[19:15];	// inst operand A register index
 assign rs2_idx=instr[24:20];	// inst operand B register index
 
 always_comb begin
-	if (rs1_idx!=0 && (rs1_idx == id_ex_rd || rs1_idx == ex_mem_rd || rs1_idx== mem_wb_rd))||(rs2_idx!=0 && (rs2_idx == id_ex_rd || rs2_idx == ex_mem_rd || rs2_idx== mem_wb_rd))
+	//if ((rs1_idx!=0 && (rs1_idx == id_ex_rd || rs1_idx == ex_mem_rd || rs1_idx== mem_wb_rd))||(rs2_idx!=0 && (rs2_idx == id_ex_rd || rs2_idx == ex_mem_rd || rs2_idx== mem_wb_rd))) begin
+	if (rs1_idx==0) begin
 		stall=1;
-		PC_en=0;
+		PC_en=0;//////////////0
 		if_id_en=0;
-	else
+	end else begin
 		stall=0;
 		PC_en=1;
 		if_id_en=1;
+	end
 end
 
 endmodule //HzDU
@@ -199,7 +203,7 @@ input logic         if_id_valid_inst,
 
 input logic [4:0] id_ex_dest_reg_idx,  //
 input logic [4:0] ex_mem_dest_reg_idx, //
-input logic [4:0] mem_wb_dest_reg_idx, // edit
+//input logic [4:0] mem_wb_dest_reg_idx, // edit
 
 output logic [31:0] id_ra_value_out,    	// reg A value
 output logic [31:0] id_rb_value_out,    	// reg B value
@@ -223,7 +227,7 @@ output logic       	id_valid_inst_out	  	// is inst a valid instruction to be co
    
 logic dest_reg_select;
 logic [31:0] rb_val;
-
+logic stall;
 //instruction fields read from IF/ID pipeline register
 logic[4:0] ra_idx; // mallon r1
 logic[4:0] rb_idx; // mallon r2
@@ -252,8 +256,9 @@ regfile regf_0(.clk		(clk),
 
 assign id_rb_value_out=rb_val;
 
-HzDU hzdu_0(
-			   .isntr	(if_id_IR),
+HzDU hzdu_0(	.clk (clk),
+				.rst     (rst),
+			   .instr	(if_id_IR),
 			   .mem_wb_rd	(mem_wb_dest_reg_idx), 
 			   .ex_mem_rd	(ex_mem_dest_reg_idx),
 			   .id_ex_rd	(id_ex_dest_reg_idx), 
