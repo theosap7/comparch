@@ -27,5 +27,5 @@ assign proc2Dmem_data = ex_mem_regb;
 
 // Assign the result-out for next stage
 assign mem_result_out = (ex_mem_rd_mem) ? Dmem2proc_data : ex_mem_alu_result;
-
+//assign mem_result_out = ex_mem_alu_result;
 endmodule // module mem_stage

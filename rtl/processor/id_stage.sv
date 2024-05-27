@@ -161,7 +161,14 @@ input [31:0] instr,
 input logic [4:0] mem_wb_rd,
 input logic [4:0] ex_mem_rd,
 input logic [4:0] id_ex_rd,
-
+input logic id_ex_reg_wr,
+input logic mem_wb_reg_wr,
+input logic ex_mem_reg_wr,
+input logic id_ex_rd_mem,
+input logic ex_mem_rd_mem,
+input logic mem_wb_rd_mem,
+output logic [1:0] ForwardA,
+output logic [1:0] ForwardB,
 output logic PC_en,
 output logic if_id_en,
 output logic stall);
@@ -171,7 +178,7 @@ logic[4:0] rs2_idx; //
 assign rs1_idx=instr[19:15];	// inst operand A register index
 assign rs2_idx=instr[24:20];	// inst operand B register index
 
-always_comb begin
+/*always_comb begin
 	if ((rs1_idx!=0 && (rs1_idx == id_ex_rd || rs1_idx == ex_mem_rd || rs1_idx== mem_wb_rd))||(rs2_idx!=0 && (rs2_idx == id_ex_rd || rs2_idx == ex_mem_rd || rs2_idx== mem_wb_rd))) begin
 	//if (rs1_idx ==0) begin
 		stall=1;
@@ -184,9 +191,37 @@ always_comb begin
 	end
 end
 
-endmodule //HzDU
+*/
+//assign stall =(id_ex_rd_mem || ex_mem_rd_mem || mem_wb_rd_mem) ? 1 : 0;
+assign stall =(ex_mem_rd_mem || id_ex_rd_mem) ? 1 : 0;
+always_comb begin	
+	if(stall!=1) begin
+		if (rs1_idx != 0 && (rs1_idx==id_ex_rd && id_ex_reg_wr) ) 
+			ForwardA = 1;
+		else if (rs1_idx != 0 && (rs1_idx==ex_mem_rd && ex_mem_reg_wr) )
+			ForwardA = 2;
+		else if(rs1_idx != 0 && (rs1_idx==mem_wb_rd && mem_wb_reg_wr))
+			ForwardA = 3;
+		else
+			ForwardA = 0;
+	end else
+		ForwardA =2;
+end
 
-
+always_comb begin	
+	if (stall!=1) begin
+		if (rs2_idx != 0 && (rs2_idx==id_ex_rd && id_ex_reg_wr) ) 
+			ForwardB = 1;
+		else if (rs2_idx != 0 && (rs2_idx==ex_mem_rd && ex_mem_reg_wr) )
+			ForwardB = 2;
+		else if(rs2_idx != 0 && (rs2_idx==mem_wb_rd && mem_wb_reg_wr))
+			ForwardB = 3;
+		else
+			ForwardB = 0;
+	end else
+		ForwardB =2;
+end
+endmodule
 
 //Instruction Decode Stage 
 module id_stage(
@@ -203,7 +238,15 @@ input logic         if_id_valid_inst,
 
 input logic [4:0] id_ex_dest_reg_idx,  //
 input logic [4:0] ex_mem_dest_reg_idx, //
-//input logic [4:0] mem_wb_dest_reg_idx, // edit
+input logic ex_mem_reg_wr,
+input logic id_ex_reg_wr,
+//input logic [2:0] ForwardA,
+//input logic [2:0] ForwardB,
+input logic [31:0] ex_alu_result_out,//
+input logic [31:0] mem_result_out,//
+input logic id_ex_rd_mem,// an 1 tote load instruction
+input logic ex_mem_rd_mem,
+input logic mem_wb_rd_mem,
 
 output logic [31:0] id_ra_value_out,    	// reg A value
 output logic [31:0] id_rb_value_out,    	// reg B value
@@ -223,16 +266,18 @@ output logic 		cond_branch,
 output logic        uncond_branch,
 output logic       	id_illegal_out,
 output logic       	id_valid_inst_out,	  	// is inst a valid instruction to be counted for CPI calculations?
-output logic stall
-);
+output logic 		stall);
    
 logic dest_reg_select;
 logic [31:0] rb_val;
+logic [31:0] ra_val;
+logic [1:0] ForwardA;
+logic [1:0] ForwardB;
 
 //instruction fields read from IF/ID pipeline register
-logic[4:0] ra_idx; // mallon r1
-logic[4:0] rb_idx; // mallon r2
-logic[4:0] rc_idx; // mallon rd
+logic[4:0] ra_idx; 
+logic[4:0] rb_idx; 
+logic[4:0] rc_idx;
 
 assign ra_idx=if_id_IR[19:15];	// inst operand A register index
 assign rb_idx=if_id_IR[24:20];	// inst operand B register index
@@ -246,7 +291,7 @@ assign write_en=mem_wb_valid_inst & mem_wb_reg_wr;
 regfile regf_0(.clk		(clk),
 			   .rst		(rst),
 			   .rda_idx	(ra_idx),
-			   .rda_out	(id_ra_value_out), 
+			   .rda_out	(ra_val), //kano ti id_ra_value_out ra_val
 			   .rdb_idx	(rb_idx),
 			   .rdb_out	(rb_val), 
 			   .wr_en	(write_en),
@@ -255,7 +300,31 @@ regfile regf_0(.clk		(clk),
 
 
 
-assign id_rb_value_out=rb_val;
+always_comb begin 
+	if (ForwardA==0)
+		id_ra_value_out =ra_val;
+	else if (ForwardA==1)
+		id_ra_value_out = ex_alu_result_out;
+	else if (ForwardA==2)
+		id_ra_value_out = mem_result_out;
+	else 
+		id_ra_value_out = wb_reg_wr_data_out;
+end
+
+always_comb begin 
+	if (ForwardB==0)
+		id_rb_value_out =rb_val;
+	else if (ForwardB==1)
+		id_rb_value_out = ex_alu_result_out;
+	else if (ForwardB==2)
+		id_rb_value_out = mem_result_out;
+	else 
+		id_rb_value_out = wb_reg_wr_data_out;
+	
+end
+
+
+
 
 HzDU hzdu_0(	.clk (clk),
 				.rst     (rst),
@@ -265,7 +334,15 @@ HzDU hzdu_0(	.clk (clk),
 			   .id_ex_rd	(id_ex_dest_reg_idx), 
 			   .PC_en	(PC_enable),
 			   .if_id_en	(if_id_enable),
-			   .stall	(stall));
+			   .stall	(stall),
+			   .id_ex_reg_wr (id_ex_reg_wr),
+			   .ex_mem_reg_wr (ex_mem_reg_wr),
+			   .mem_wb_reg_wr (mem_wb_reg_wr),
+			   .ForwardA 	 	(ForwardA),
+			   .ForwardB 		(ForwardB),
+			   .id_ex_rd_mem 	(id_ex_rd_mem),
+			.ex_mem_rd_mem		(ex_mem_rd_mem),
+				.mem_wb_rd_mem  (mem_wb_rd_mem));
 
 // instantiate the instruction inst_decoder
 inst_decoder inst_decoder_0(.inst	        (if_id_IR),
@@ -331,7 +408,7 @@ always_comb begin : immediate_mux
 	endcase
 end
 
-assign pc_add_opa =(if_id_IR[6:0] == `I_JAL_TYPE)? id_ra_value_out:if_id_PC;
+assign pc_add_opa =(if_id_IR[6:0] == `I_JAL_TYPE)? id_ra_value_out:if_id_PC;//ra_val??????????????????????
 
 
 //target PC to branch to

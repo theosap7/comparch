@@ -163,7 +163,7 @@ if_stage if_stage_0 (
 //            IF/ID Pipeline Register           //
 //                                              //
 //////////////////////////////////////////////////
-assign if_id_enable = !stall;
+assign if_id_enable =!stall;
 
 always_ff @(posedge clk or posedge rst) begin
 	if(rst||ex_mem_take_branch) begin
@@ -195,10 +195,20 @@ id_stage id_stage_0 (
 .mem_wb_dest_reg_idx	(mem_wb_dest_reg_idx),
 .mem_wb_valid_inst    	(mem_wb_valid_inst),
 .mem_wb_reg_wr			(mem_wb_reg_wr), 
+.ex_mem_reg_wr	 	(ex_mem_reg_wr),
+.id_ex_reg_wr	 	(id_ex_reg_wr),
 .wb_reg_wr_data_out     (wb_reg_wr_data_out),  	
 .if_id_valid_inst       (if_id_valid_inst),
 .id_ex_dest_reg_idx     (id_ex_dest_reg_idx), // edit
-.ex_mem_dest_reg_idx    (ex_mem_dest_reg_idx), //
+.ex_mem_dest_reg_idx    (ex_mem_dest_reg_idx), 
+.ex_alu_result_out 		(ex_alu_result_out),
+.mem_result_out			(mem_result_out),
+//.ForwardA				(ForwardA),
+//.ForwardB				(ForwardB),
+.id_ex_rd_mem 			(id_ex_rd_mem),
+.ex_mem_rd_mem 			(ex_mem_rd_mem),
+.mem_wb_rd_mem 			(mem_wb_rd_mem),
+//
 //.mem_wb_dest_reg_idx    (mem_wb_dest_reg_idx), //
 // Outputs
 .id_reg_wr_out          (id_reg_wr_out),
@@ -217,7 +227,7 @@ id_stage id_stage_0 (
 .uncond_branch			(id_uncond_branch),
 .id_illegal_out			(id_illegal_out),
 .id_valid_inst_out		(id_valid_inst_out),
-.stall(stall)
+.stall					(stall)
 );
 
 //////////////////////////////////////////////////
